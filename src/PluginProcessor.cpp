@@ -220,20 +220,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout TimecodeLtcAudioProcessor::c
     return layout;
 }
 
-ltc::FrameRate TimecodeLtcAudioProcessor::getActiveFrameRate (const juce::AudioPlayHead::PositionInfo& positionInfo) const
-{
-    const auto manualRate = ltc::fromChoiceIndex (static_cast<int> (std::lround (frameRateChoice->load (std::memory_order_relaxed))));
-
-    if (followHostRate->load (std::memory_order_relaxed) <= 0.5f)
-        return manualRate;
-
-    const auto hostRate = positionInfo.getFrameRate();
-    if (! hostRate.hasValue())
-        return manualRate;
-
-    return ltc::fromJuceFrameRate (*hostRate).value_or (manualRate);
-}
-
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new TimecodeLtcAudioProcessor();

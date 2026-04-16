@@ -39,7 +39,6 @@ public:
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
-    ltc::FrameRate getActiveFrameRate (const juce::AudioPlayHead::PositionInfo& positionInfo) const;
 
     juce::AudioProcessorValueTreeState state;
     std::atomic<float>* frameRateChoice = nullptr;

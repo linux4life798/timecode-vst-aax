@@ -22,6 +22,12 @@ Build:
 cmake --build build-ninja
 ```
 
+Build just the Linux VST3 target:
+
+```bash
+cmake --build build-ninja --target TimecodeLTC_VST3
+```
+
 Clean build dir:
 
 ```bash
@@ -30,5 +36,5 @@ rm -rf build-ninja
 
 ## Notes
 
-- This repo currently targets `AAX` in CMake.
-- On Linux, JUCE builds the shared plugin code, not a real `.aaxplugin` bundle.
+- This repo builds `VST3` everywhere and `AAX` only on supported macOS/Windows builds.
+- On Linux, the main test artifact is `build-ninja/TimecodeLTC_artefacts/VST3/LTC Generator.vst3`.

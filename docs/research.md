@@ -13,6 +13,7 @@
 
 - Plugin framework: `JUCE`
 - AAX path: JUCE's `AAX` wrapper support
+- Linux test path: JUCE's bundled `VST3` wrapper support
 - LTC generation: small internal encoder in project code
 - State/parameters: `juce::AudioProcessorValueTreeState`
 - Editor: `juce::GenericAudioProcessorEditor`
@@ -33,7 +34,9 @@ Reference points used:
 The exact JUCE interfaces/config we are using are:
 
 - `juce_add_plugin(... FORMATS AAX ...)`
+- `juce_add_plugin(... FORMATS VST3 ...)`
 - `AAX_CATEGORY SWGenerators`
+- `VST3_CATEGORIES Fx Generator Mono`
 - `juce::AudioProcessor`
 - `juce::AudioProcessorValueTreeState`
 - `juce::AudioParameterChoice`
@@ -94,6 +97,37 @@ That is why the plugin implementation uses:
 2. `getTimeInSamples()` for the current playhead location
 3. `getEditOriginTime()` so LTC can follow the session timecode origin instead of always starting at `00:00:00:00`
 4. `getFrameRate()` when `Use Host Rate` is enabled
+
+For Linux VST3, the relevant JUCE wrapper path is:
+
+- `references/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp`
+
+That wrapper populates `PositionInfo` with:
+
+- `projectTimeSamples`
+- `frameRate`
+- `smpteOffsetSubframes` mapped to `editOriginTime`
+- playing/recording state
+
+This means the same transport-driven LTC logic works for both `AAX` and `VST3` without format-specific plugin code.
+
+## VST3 SDK And Linux Compatibility
+
+JUCE does not require a separate Steinberg VST3 checkout for this repository.
+
+Reference points used:
+
+- `references/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake`
+- `references/JUCE/extras/Build/CMake/JUCEUtils.cmake`
+
+JUCE falls back to its bundled VST3 SDK headers unless `juce_set_vst3_sdk_path(...)` is called.
+
+The Linux-facing project choice is therefore:
+
+- always build `VST3`
+- build `AAX` only on JUCE-supported AAX platforms
+
+That keeps local Linux testing working while preserving the real Pro Tools target for macOS/Windows.
 
 ## Bus/Layout Decision
 
