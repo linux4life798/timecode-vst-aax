@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+option(TIMECODE_LTC_BUILD_PLUGIN "Build the JUCE plugin target" ON)
+option(TIMECODE_LTC_BUILD_LIBLTC_UTIL "Build the standalone libltc decode utility" OFF)
+
 set(JUCE_SOURCE_DIR "" CACHE PATH "Path to a JUCE source checkout")
 set(TIMECODE_LTC_PLUGIN_FORMATS VST3)
 
@@ -17,45 +20,59 @@ if((CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     list(APPEND TIMECODE_LTC_PLUGIN_FORMATS AAX)
 endif()
 
-if(JUCE_SOURCE_DIR)
-    add_subdirectory("${JUCE_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/juce")
-else()
-    find_package(JUCE CONFIG REQUIRED)
+if(TIMECODE_LTC_BUILD_PLUGIN)
+    if(JUCE_SOURCE_DIR)
+        add_subdirectory("${JUCE_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/juce")
+    else()
+        find_package(JUCE CONFIG REQUIRED)
+    endif()
+
+    juce_add_plugin(TimecodeLTC
+        BUNDLE_ID "com.timecodevst.ltcgenerator"
+        COMPANY_NAME "timecode-vst"
+        DESCRIPTION "Host-transport LTC generator"
+        FORMATS ${TIMECODE_LTC_PLUGIN_FORMATS}
+        IS_MIDI_EFFECT FALSE
+        IS_SYNTH FALSE
+        NEEDS_MIDI_INPUT FALSE
+        NEEDS_MIDI_OUTPUT FALSE
+        PLUGIN_CODE Ltc1
+        PLUGIN_MANUFACTURER_CODE Tcod
+        PLUGIN_NAME "LTC Generator"
+        PRODUCT_NAME "LTC Generator"
+        VST3_CATEGORIES Fx Generator Mono
+        AAX_CATEGORY SWGenerators)
+
+    juce_generate_juce_header(TimecodeLTC)
+
+    target_sources(TimecodeLTC
+        PRIVATE
+            src/LtcGenerator.h
+            src/PluginProcessor.cpp
+            src/PluginProcessor.h)
+
+    target_compile_definitions(TimecodeLTC
+        PUBLIC
+            JUCE_VST3_CAN_REPLACE_VST2=0
+            JUCE_USE_CURL=0
+            JUCE_WEB_BROWSER=0)
+
+    target_link_libraries(TimecodeLTC
+        PRIVATE
+            juce::juce_audio_processors
+        PUBLIC
+            juce::juce_recommended_config_flags
+            juce::juce_recommended_warning_flags)
 endif()
 
-juce_add_plugin(TimecodeLTC
-    BUNDLE_ID "com.timecodevst.ltcgenerator"
-    COMPANY_NAME "timecode-vst"
-    DESCRIPTION "Host-transport LTC generator"
-    FORMATS ${TIMECODE_LTC_PLUGIN_FORMATS}
-    IS_MIDI_EFFECT FALSE
-    IS_SYNTH FALSE
-    NEEDS_MIDI_INPUT FALSE
-    NEEDS_MIDI_OUTPUT FALSE
-    PLUGIN_CODE Ltc1
-    PLUGIN_MANUFACTURER_CODE Tcod
-    PLUGIN_NAME "LTC Generator"
-    PRODUCT_NAME "LTC Generator"
-    VST3_CATEGORIES Fx Generator Mono
-    AAX_CATEGORY SWGenerators)
+if(TIMECODE_LTC_BUILD_LIBLTC_UTIL)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(LIBLTC REQUIRED IMPORTED_TARGET ltc)
 
-juce_generate_juce_header(TimecodeLTC)
+    add_executable(ltc_decode_packets
+        tools/ltc_decode_packets.cpp)
 
-target_sources(TimecodeLTC
-    PRIVATE
-        src/LtcGenerator.h
-        src/PluginProcessor.cpp
-        src/PluginProcessor.h)
-
-target_compile_definitions(TimecodeLTC
-    PUBLIC
-        JUCE_VST3_CAN_REPLACE_VST2=0
-        JUCE_USE_CURL=0
-        JUCE_WEB_BROWSER=0)
-
-target_link_libraries(TimecodeLTC
-    PRIVATE
-        juce::juce_audio_processors
-    PUBLIC
-        juce::juce_recommended_config_flags
-        juce::juce_recommended_warning_flags)
+    target_link_libraries(ltc_decode_packets
+        PRIVATE
+            PkgConfig::LIBLTC)
+endif()
