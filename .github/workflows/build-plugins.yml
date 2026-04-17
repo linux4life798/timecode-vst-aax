@@ -69,10 +69,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Checkout JUCE
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: juce-framework/JUCE
           ref: 501c07674e1ad693085a7e7c398f205c2677f5da
@@ -156,7 +156,7 @@ jobs:
           ditto -c -k --keepParent "${{ matrix.bundle_path }}" "dist/${{ matrix.archive_name }}"
 
       - name: Upload packaged artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact_name }}
           path: dist/${{ matrix.archive_name }}
@@ -173,7 +173,7 @@ jobs:
 
     steps:
       - name: Download packaged artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           path: release-assets
 
