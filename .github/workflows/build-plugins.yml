@@ -21,6 +21,7 @@ jobs:
             family: linux
             format: vst3
             target: TimecodeLTC_VST3
+            cmake_generator_args: '-G Ninja'
             bundle_path: build/TimecodeLTC_artefacts/VST3/LTC Generator.vst3
             bundle_dir: build/TimecodeLTC_artefacts/VST3
             bundle_name: LTC Generator.vst3
@@ -31,6 +32,7 @@ jobs:
             family: windows
             format: vst3
             target: TimecodeLTC_VST3
+            cmake_generator_args: '-G "Visual Studio 17 2022" -A x64'
             bundle_path: build/TimecodeLTC_artefacts/Release/VST3/LTC Generator.vst3
             bundle_dir: build/TimecodeLTC_artefacts/Release/VST3
             bundle_name: LTC Generator.vst3
@@ -41,6 +43,7 @@ jobs:
             family: windows
             format: aax
             target: TimecodeLTC_AAX
+            cmake_generator_args: '-G "Visual Studio 17 2022" -A x64'
             bundle_path: build/TimecodeLTC_artefacts/Release/AAX/LTC Generator.aaxplugin
             bundle_dir: build/TimecodeLTC_artefacts/Release/AAX
             bundle_name: LTC Generator.aaxplugin
@@ -51,6 +54,7 @@ jobs:
             family: macos
             format: vst3
             target: TimecodeLTC_VST3
+            cmake_generator_args: '-G Xcode -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"'
             bundle_path: build/TimecodeLTC_artefacts/Release/VST3/LTC Generator.vst3
             bundle_dir: build/TimecodeLTC_artefacts/Release/VST3
             bundle_name: LTC Generator.vst3
@@ -61,6 +65,7 @@ jobs:
             family: macos
             format: aax
             target: TimecodeLTC_AAX
+            cmake_generator_args: '-G Xcode -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"'
             bundle_path: build/TimecodeLTC_artefacts/Release/AAX/LTC Generator.aaxplugin
             bundle_dir: build/TimecodeLTC_artefacts/Release/AAX
             bundle_name: LTC Generator.aaxplugin
@@ -97,40 +102,13 @@ jobs:
             libxrender-dev \
             ninja-build
 
-      - name: Configure Linux build
-        if: matrix.family == 'linux'
+      - name: Configure build
         shell: bash
         run: >-
-          cmake -S . -B build -G Ninja
-          -DJUCE_SOURCE_DIR="${GITHUB_WORKSPACE}/JUCE"
+          cmake -S . -B build ${{ matrix.cmake_generator_args }}
+          -DJUCE_SOURCE_DIR="${{ github.workspace }}/JUCE"
 
-      - name: Configure Windows build
-        if: matrix.family == 'windows'
-        shell: pwsh
-        run: >-
-          cmake -S . -B build -G "Visual Studio 17 2022" -A x64
-          -DJUCE_SOURCE_DIR="${env:GITHUB_WORKSPACE}/JUCE"
-
-      - name: Configure macOS build
-        if: matrix.family == 'macos'
-        shell: bash
-        run: >-
-          cmake -S . -B build -G Xcode
-          -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
-          -DJUCE_SOURCE_DIR="${GITHUB_WORKSPACE}/JUCE"
-
-      - name: Build Linux target
-        if: matrix.family == 'linux'
-        shell: bash
-        run: cmake --build build --target "${{ matrix.target }}"
-
-      - name: Build Windows target
-        if: matrix.family == 'windows'
-        shell: pwsh
-        run: cmake --build build --config Release --target "${{ matrix.target }}"
-
-      - name: Build macOS target
-        if: matrix.family == 'macos'
+      - name: Build target
         shell: bash
         run: cmake --build build --config Release --target "${{ matrix.target }}"
 
