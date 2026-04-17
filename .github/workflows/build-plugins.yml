@@ -1,0 +1,185 @@
+name: Build Plugins
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Linux VST3
+            runner: ubuntu-24.04
+            family: linux
+            format: vst3
+            target: TimecodeLTC_VST3
+            bundle_path: build/TimecodeLTC_artefacts/VST3/LTC Generator.vst3
+            bundle_dir: build/TimecodeLTC_artefacts/VST3
+            bundle_name: LTC Generator.vst3
+            archive_name: LTC-Generator-linux-vst3.zip
+            artifact_name: ltc-generator-linux-vst3
+          - label: Windows VST3
+            runner: windows-2022
+            family: windows
+            format: vst3
+            target: TimecodeLTC_VST3
+            bundle_path: build/TimecodeLTC_artefacts/Release/VST3/LTC Generator.vst3
+            bundle_dir: build/TimecodeLTC_artefacts/Release/VST3
+            bundle_name: LTC Generator.vst3
+            archive_name: LTC-Generator-windows-vst3.zip
+            artifact_name: ltc-generator-windows-vst3
+          - label: Windows AAX
+            runner: windows-2022
+            family: windows
+            format: aax
+            target: TimecodeLTC_AAX
+            bundle_path: build/TimecodeLTC_artefacts/Release/AAX/LTC Generator.aaxplugin
+            bundle_dir: build/TimecodeLTC_artefacts/Release/AAX
+            bundle_name: LTC Generator.aaxplugin
+            archive_name: LTC-Generator-windows-aax.zip
+            artifact_name: ltc-generator-windows-aax
+          - label: macOS VST3
+            runner: macos-15
+            family: macos
+            format: vst3
+            target: TimecodeLTC_VST3
+            bundle_path: build/TimecodeLTC_artefacts/Release/VST3/LTC Generator.vst3
+            bundle_dir: build/TimecodeLTC_artefacts/Release/VST3
+            bundle_name: LTC Generator.vst3
+            archive_name: LTC-Generator-macos-universal-vst3.zip
+            artifact_name: ltc-generator-macos-vst3
+          - label: macOS AAX
+            runner: macos-15
+            family: macos
+            format: aax
+            target: TimecodeLTC_AAX
+            bundle_path: build/TimecodeLTC_artefacts/Release/AAX/LTC Generator.aaxplugin
+            bundle_dir: build/TimecodeLTC_artefacts/Release/AAX
+            bundle_name: LTC Generator.aaxplugin
+            archive_name: LTC-Generator-macos-universal-aax.zip
+            artifact_name: ltc-generator-macos-aax
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Checkout JUCE
+        uses: actions/checkout@v4
+        with:
+          repository: juce-framework/JUCE
+          ref: 501c07674e1ad693085a7e7c398f205c2677f5da
+          path: JUCE
+
+      - name: Install Linux build dependencies
+        if: matrix.family == 'linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            libasound2-dev \
+            libfontconfig1-dev \
+            libfreetype-dev \
+            libjack-jackd2-dev \
+            libx11-dev \
+            libxcomposite-dev \
+            libxcursor-dev \
+            libxext-dev \
+            libxinerama-dev \
+            libxrandr-dev \
+            libxrender-dev \
+            ninja-build
+
+      - name: Configure Linux build
+        if: matrix.family == 'linux'
+        shell: bash
+        run: >-
+          cmake -S . -B build -G Ninja
+          -DJUCE_SOURCE_DIR="${GITHUB_WORKSPACE}/JUCE"
+
+      - name: Configure Windows build
+        if: matrix.family == 'windows'
+        shell: pwsh
+        run: >-
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+          -DJUCE_SOURCE_DIR="${env:GITHUB_WORKSPACE}/JUCE"
+
+      - name: Configure macOS build
+        if: matrix.family == 'macos'
+        shell: bash
+        run: >-
+          cmake -S . -B build -G Xcode
+          -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+          -DJUCE_SOURCE_DIR="${GITHUB_WORKSPACE}/JUCE"
+
+      - name: Build Linux target
+        if: matrix.family == 'linux'
+        shell: bash
+        run: cmake --build build --target "${{ matrix.target }}"
+
+      - name: Build Windows target
+        if: matrix.family == 'windows'
+        shell: pwsh
+        run: cmake --build build --config Release --target "${{ matrix.target }}"
+
+      - name: Build macOS target
+        if: matrix.family == 'macos'
+        shell: bash
+        run: cmake --build build --config Release --target "${{ matrix.target }}"
+
+      - name: Package Linux plugin bundle
+        if: matrix.family == 'linux'
+        shell: bash
+        run: |
+          cmake -E make_directory dist
+          cmake -E chdir "${{ matrix.bundle_dir }}" cmake -E tar cfv "${GITHUB_WORKSPACE}/dist/${{ matrix.archive_name }}" --format=zip -- "${{ matrix.bundle_name }}"
+
+      - name: Package Windows plugin bundle
+        if: matrix.family == 'windows'
+        shell: pwsh
+        run: |
+          cmake -E make_directory dist
+          cmake -E chdir "${{ matrix.bundle_dir }}" cmake -E tar cfv "${env:GITHUB_WORKSPACE}/dist/${{ matrix.archive_name }}" --format=zip -- "${{ matrix.bundle_name }}"
+
+      - name: Package macOS plugin bundle
+        if: matrix.family == 'macos'
+        shell: bash
+        run: |
+          mkdir -p dist
+          ditto -c -k --keepParent "${{ matrix.bundle_path }}" "dist/${{ matrix.archive_name }}"
+
+      - name: Upload packaged artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/${{ matrix.archive_name }}
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish Release Assets
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download packaged artifacts
+        uses: actions/download-artifact@v5
+        with:
+          path: release-assets
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: release-assets/**/*.zip
+          fail_on_unmatched_files: true
+          generate_release_notes: true
